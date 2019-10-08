@@ -28,6 +28,8 @@ RUN cd kpsr-core \
     && make test_coverage_cobertura ARGS="-V" \
     && make doc \
     && make install
+    && cd ..
+    && bash make_extract_gtestresults.sh
 
 ARG BUILD_ID
 LABEL kpsr-core=builder

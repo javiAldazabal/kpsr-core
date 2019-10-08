@@ -17,16 +17,21 @@ pipeline {
         }
         stage('Build') {
             steps {
-                
+
                 sh "docker build -f ./ci/Vanilla/Dockerfile_Vanilla . --rm --build-arg=BUILD_ID=${BUILD_ID} \
                 -t kpsr-core:${local_branch}_${BUILD_ID}_Vanilla"
 
                 sh 'container_id=$(docker create $(docker images -a -f "label=kpsr-core=builder" -f  "label=BUILD_ID=${BUILD_ID}" --format "{{.ID}}")) && \
                     docker cp $container_id:/opt/kpsr-core/build/copy_cppcheck.sh . && \
                     bash copy_cppcheck.sh $container_id && \
+                    docker cp $container_id:/opt/kpsr-core/extract_gtestresults.sh . && \
+                    bash extract_gtestresults.sh $container_id && \
                     docker cp $container_id:/opt/kpsr-core/build/coverage.xml . && \
                     docker cp $container_id:/opt/kpsr-core/build/code_generator/kpsr_codegen/coverage.xml code_generator/kpsr_codegen && \
                     sed -i -e "s@[./]opt[./]kpsr-core[./]@@g" code_generator/kpsr_codegen/coverage.xml'
+
+                // Publish JUnit test results
+                junit(testResults: '**/gtestresults.xml')
 
                 // Run cppcheck
                 publishCppcheck(
