@@ -27,8 +27,8 @@ RUN cd kpsr-core \
     && bash ../kpsr-build/scripts/make_cppcheck.sh \
     && make test_coverage_cobertura ARGS="-V" \
     && make doc \
-    && make install
-    && cd ..
+    && make install \
+    && cd .. \
     && bash make_extract_gtestresults.sh
 
 ARG BUILD_ID
