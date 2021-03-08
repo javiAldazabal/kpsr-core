@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -26,11 +25,13 @@
 #include <sstream>
 #include <fstream>
 
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/basic_file_sink.h"
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/ostream_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #include <klepsydra/core/cache_listener.h>
 
+#include <klepsydra/mem_core/mem_env.h>
 #include <klepsydra/high_performance/data_multiplexer_middleware_provider.h>
 
 #include "gtest/gtest.h"
@@ -42,7 +43,7 @@ public:
     static std::atomic_int emptyConstructorInvokations;
     static std::atomic_int copyInvokations;
 
-    DataMultiplexerTestEvent(int id, std::string message)
+    DataMultiplexerTestEvent(int id, const std::string & message)
         : _id(id)
         , _message(message) {
         DataMultiplexerTestEvent::constructorInvokations++;
@@ -66,7 +67,7 @@ public:
 class DataMultiplexerNewTestEvent {
 public:
 
-    DataMultiplexerNewTestEvent(std::string label, std::vector<double> values)
+    DataMultiplexerNewTestEvent(const std::string & label, std::vector<double> values)
         : _label(label)
         , _values(values) {
     }
@@ -222,4 +223,41 @@ TEST(DataMultiplexerMiddlewareTest, TwoConsumer) {
     ASSERT_EQ(499, slowListener.getLastReceivedEvent()->_id);
     ASSERT_EQ("hola", slowListener.getLastReceivedEvent()->_message);
     ASSERT_EQ(fastSubscriptionStats->_totalProcessed + slowSubscriptionStats->_totalProcessed, fastListener.counter + slowListener.counter);
+}
+
+TEST(DataMultiplexerMiddlewareTest, SetContainerSuccessTest) {
+
+    kpsr::high_performance::DataMultiplexerMiddlewareProvider<int, 4> provider(nullptr, "testProvider");
+
+    kpsr::mem::MemEnv environment;
+    kpsr::Container testContainer(&environment, "testContainer");
+
+    provider.setContainer(&testContainer);
+    auto dummySubscriberTest = provider.getSubscriber();
+    ASSERT_EQ(&testContainer, dummySubscriberTest->_container);
+}
+
+TEST(DataMultiplexerMiddlewareTest, SetContainerAfterSubscriberStartTest) {
+
+    kpsr::high_performance::DataMultiplexerMiddlewareProvider<int, 4> provider(nullptr, "testProvider");
+    kpsr::mem::MemEnv environment;
+    kpsr::Container testContainer(&environment, "testContainer");
+    auto dummySubscriberTest = provider.getSubscriber();
+    dummySubscriberTest->registerListener("dummy", [](const int& event) {std::cout << "Got event : " << event << std::endl;});
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    std::stringstream programLogStream;
+    auto ostream_sink = std::make_shared<spdlog::sinks::ostream_sink_mt> (programLogStream);
+    auto logger = std::make_shared<spdlog::logger>("my_logger", ostream_sink);
+    spdlog::register_logger(logger);
+    spdlog::set_default_logger(logger);
+    provider.setContainer(&testContainer);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    spdlog::drop("my_logger");
+    dummySubscriberTest->removeListener("dummy");
+    ASSERT_EQ(&testContainer, dummySubscriberTest->_container);
+    std::string spdlogString = programLogStream.str();
+    ASSERT_NE(spdlogString.size(), 0);
+    auto console = spdlog::stdout_color_mt("default");
+    spdlog::set_default_logger(console);
 }

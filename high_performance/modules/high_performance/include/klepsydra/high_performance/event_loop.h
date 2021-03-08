@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -27,6 +26,7 @@
 #include <memory>
 #include <iostream>
 #include <atomic>
+#include <future>
 
 #include <klepsydra/core/event_emitter_subscriber.h>
 
@@ -37,6 +37,10 @@ namespace kpsr
 {
 namespace high_performance
 {
+
+static const long EVENT_LOOP_START_TIMEOUT_MILLISEC = 100;
+static const char * EVENT_LOOP_START_MESSAGE = "About to run batchEventProcessor";
+    
 template <std::size_t BufferSize>
 /**
  * @brief The EventLoop class
@@ -63,10 +67,24 @@ public:
      * @param eventEmitter
      * @param ringBuffer
      */
-    EventLoop(kpsr::EventEmitter & eventEmitter, RingBuffer & ringBuffer)
-        : _ringBuffer(ringBuffer)
+    EventLoop(kpsr::EventEmitter & eventEmitter, RingBuffer & ringBuffer, const std::string & name,
+              long timeoutMS = EVENT_LOOP_START_TIMEOUT_MILLISEC)
+        : _name(name)
+        , _threadName(std::to_string(BufferSize) + "_" + name)
+        , _ringBuffer(ringBuffer)
         , _eventHandler(eventEmitter)
         , _isStarted(false)
+        , _eventLoopTask([this] {
+                                std::vector<disruptor4cpp::sequence * > sequences_to_add;
+                                sequences_to_add.resize(1);
+                                sequences_to_add[0] = &batchEventProcessor->get_sequence();
+                                this->_ringBuffer.add_gating_sequences(sequences_to_add);
+                                spdlog::info(EVENT_LOOP_START_MESSAGE);
+                                this->batchEventProcessor->run();
+                            })
+        , _batchProcessTask(_eventLoopTask)
+        , _batchProcessorThreadFuture(_batchProcessTask.get_future())
+        , _timeoutUs(timeoutMS*1000)
     {
         auto barrier = _ringBuffer.new_barrier();
         batchEventProcessor = std::unique_ptr<BatchProcessor>(new BatchProcessor(_ringBuffer, std::move(barrier), _eventHandler));
@@ -76,44 +94,59 @@ public:
      * @brief start start consumer thread
      */
     void start() {
-        if (_isStarted) {
+        if (isStarted()) {
             return;
         }
-        batchProcessorThread = std::thread([this] {
-            std::vector<disruptor4cpp::sequence * > sequences_to_add;
-            sequences_to_add.resize(1);
-            sequences_to_add[0] = &batchEventProcessor.get()->get_sequence();
-            this->_ringBuffer.add_gating_sequences(sequences_to_add);
-            this->batchEventProcessor->run();
-        });
-        _isStarted = true;
+        _isStarted.store(true, std::memory_order_release);
+        batchProcessorThread = std::thread(std::move(_batchProcessTask));
+        long counterUs = 0;
+        while(!this->batchEventProcessor->is_running()) {
+            if (counterUs > _timeoutUs) {
+                throw std::runtime_error("Could not start the event loop");
+            }
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            counterUs += 100;
+        }
     }
 
     /**
      * @brief stop stop consumer thread.
      */
     void stop() {
-        if (!_isStarted) {
+        if (!isStarted()) {
             return;
         }
+        _isStarted.store(false, std::memory_order_release);
         this->batchEventProcessor->halt();
-        _isStarted = false;
+        spdlog::info("Halting the batchEventProcessor");
         if (this->batchProcessorThread.joinable())
         {
             this->batchProcessorThread.join();
         }
+        // make _batchProcessTask reusable
+        _batchProcessTask = std::packaged_task<void()>(_eventLoopTask);
+        _batchProcessorThreadFuture = _batchProcessTask.get_future();
     }
 
     bool isStarted() {
-        return _isStarted;
+        return _isStarted.load(std::memory_order_acquire);
     }
 
+    bool isRunning() const {
+        return this->batchEventProcessor->is_running();
+    }
 private:
+    std::string _name;
+    std::string _threadName;
     RingBuffer & _ringBuffer;
     EventLoopEventHandler _eventHandler;
     std::unique_ptr<BatchProcessor> batchEventProcessor;
     std::thread batchProcessorThread;
     std::atomic_bool _isStarted;
+    std::function<void()> _eventLoopTask;
+    std::packaged_task<void()> _batchProcessTask;
+    std::future<void> _batchProcessorThreadFuture;
+    long _timeoutUs;
 };
 }
 }

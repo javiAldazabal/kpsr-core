@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -25,9 +24,14 @@
 #include <functional>
 #include <atomic>
 #include <mutex>
+#include <future>
+#include <map>
 
 namespace kpsr {
 namespace zmq_mdlw {
+
+static const long ZMQ_START_TIMEOUT_MILLISEC = 100;
+    
 template<class T>
 /**
  * @brief The ZMQPoller class
@@ -46,32 +50,57 @@ public:
      * @param subscriber
      * @param pollPeriod
      */
-    ZMQPoller(zmq::socket_t & subscriber, long pollPeriod)
+    ZMQPoller(zmq::socket_t & subscriber, long pollPeriod,
+              long timeoutMS = ZMQ_START_TIMEOUT_MILLISEC)
         : _subscriber(subscriber)
         , _pollPeriod(pollPeriod)
-        , _running(false)
         , _threadNotifier()
+        , _running(false)
+        , _started(false)
+        , _poller(std::bind(&ZMQPoller::pollingLoop, this))
+        , _threadNotifierFuture(_poller.get_future())
+        , _timeoutUs(timeoutMS*1000)
     {}
 
     /**
      * @brief start
      */
     virtual void start() {
-        _running = true;
-        _threadNotifier = std::thread(&ZMQPoller::poll, this);
+        if (isStarted()) {
+            return;
+        }
+        this->_started.store(true, std::memory_order_release);
+        _threadNotifier = std::thread(std::move(_poller));
+        long counterUs = 0;
+        while (!isRunning()) {
+            if (counterUs > _timeoutUs) {
+                throw std::runtime_error("Could not start the ZMQ poller");
+            }
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            counterUs += 100;
+        }
     }
 
     /**
      * @brief stop
      */
     virtual void stop() {
-        _running = false;
-        if(_threadNotifier.joinable()) _threadNotifier.join();
+        if (!isStarted()) {
+            return;
+        }
+        _running.store(false, std::memory_order_release);
+        if(_threadNotifier.joinable()) {
+		    _threadNotifier.join();
+        }
+        _poller = std::packaged_task<void()>(std::bind(&ZMQPoller::pollingLoop, this));
+        _started.store(false, std::memory_order_release);
     }
 
     ~ZMQPoller() {
         _running = false;
-        if(_threadNotifier.joinable()) _threadNotifier.join();
+        if(_threadNotifier.joinable()) {
+		    _threadNotifier.join();
+        }
     }
 
     /**
@@ -79,7 +108,7 @@ public:
      * @param topic
      * @param function
      */
-    void registerToTopic(std::string topic, std::function<void(const T &)> function) {
+    void registerToTopic(const std::string & topic, std::function<void(const T &)> function) {
         std::lock_guard<std::mutex> lock(mutex);
         _functionTopicMap[topic] = function;
     }
@@ -88,7 +117,7 @@ public:
      * @brief unregisterFromTopic
      * @param topic
      */
-    void unregisterFromTopic(std::string topic) {
+    void unregisterFromTopic(const std::string & topic) {
         std::lock_guard<std::mutex> lock(mutex);
         _functionTopicMap.erase(topic);
     }
@@ -98,7 +127,7 @@ public:
      * @param topic
      * @param event
      */
-    void executeFunction(std::string topic, const T & event) {
+    void executeFunction(const std::string & topic, const T & event) {
         std::lock_guard<std::mutex> lock(mutex);
         auto search = _functionTopicMap.find(topic);
         if (search != _functionTopicMap.end()) {
@@ -112,16 +141,38 @@ public:
     virtual void poll() = 0;
 
 protected:
+    void pollingLoop() {
+        _running.store(true, std::memory_order_relaxed);
+        this->poll();
+    }
+
+    /**
+     * @brief isRunning
+     */
+    bool isRunning() {
+        return _running.load(std::memory_order_acquire);
+    }
+
+    /**
+     * @brief isStarted
+     */
+    bool isStarted() {
+        return _started.load(std::memory_order_acquire);
+    }
+
     zmq::socket_t & _subscriber;
     long _pollPeriod;
+    std::thread _threadNotifier;
     std::atomic<bool> _running;
 
-    std::thread _threadNotifier;
+    std::atomic<bool> _started;
+    std::packaged_task<void()> _poller;
+    std::future<void> _threadNotifierFuture;
     std::mutex mutex;
 
     std::map<std::string, std::function<void(const T &)>> _functionTopicMap;
     typedef typename std::map<std::string, std::function<void(const T &)>>::iterator it_type;
-
+    long _timeoutUs;
 };
 }
 }

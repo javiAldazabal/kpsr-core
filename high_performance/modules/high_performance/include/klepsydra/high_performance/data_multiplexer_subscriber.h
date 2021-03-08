@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -26,6 +25,7 @@
 #include <map>
 #include <memory>
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 #include <klepsydra/core/subscriber.h>
 
@@ -64,7 +64,7 @@ public:
      * @param name
      * @param ringBuffer
      */
-    DataMultiplexerSubscriber(Container * container, std::string name, RingBuffer & ringBuffer)
+    DataMultiplexerSubscriber(Container * container, const std::string & name, RingBuffer & ringBuffer)
         : Subscriber<TEvent>(container, name, "DATA_MULTIPLEXER")
         , _ringBuffer(ringBuffer)
     {}
@@ -74,7 +74,7 @@ public:
      * @param name
      * @param listener
      */
-    void registerListener(std::string name, const std::function<void(const TEvent &)> listener) {
+    void registerListener(const std::string & name, const std::function<void(const TEvent &)> listener) {
         std::lock_guard<std::mutex> lock (m_mutex);
         listenerStats.insert(std::make_pair(name, std::make_shared<kpsr::SubscriptionStats>(name, this->_name, "DATA_MULTIPLEXER")));
         if (this->_container != nullptr) {
@@ -96,17 +96,10 @@ public:
      * @brief removeListener
      * @param name
      */
-    void removeListener(std::string name) {
+    void removeListener(const std::string & name) {
         std::lock_guard<std::mutex> lock (m_mutex);
         if (subscriberMap.find(name) != subscriberMap.end()) {
-            while (!subscriberMap[name]->batchEventProcessor->is_running()) {
-                std::this_thread::sleep_for(std::chrono::microseconds(1));
-            }
-            subscriberMap[name]->batchEventProcessor->halt();
-            if (subscriberMap[name]->batchProcessorThread.joinable())
-            {
-                subscriberMap[name]->batchProcessorThread.join();
-            }
+            subscriberMap[name]->stop();
             if (this->_container != nullptr) {
                 this->_container->detach(listenerStats[name].get());
             }
@@ -119,7 +112,7 @@ public:
      * @param name
      * @return
      */
-    std::shared_ptr<SubscriptionStats> getSubscriptionStats(const std::string name) {
+    std::shared_ptr<SubscriptionStats> getSubscriptionStats(const std::string & name) {
         return listenerStats[name];
     }
 
@@ -128,6 +121,20 @@ public:
      */
     std::map<std::string, std::shared_ptr<DataMultiplexerListener<TEvent, BufferSize>>> subscriberMap;
 
+    void setContainer(Container * container) {
+        std::lock_guard<std::mutex> lock (m_mutex);
+        this->_container = container;
+        if (this->_container) {
+            for (auto& keyValue: subscriberMap) {
+                if (!keyValue.second->batchEventProcessor->is_running()) {
+                    this->_container->attach(getSubscriptionStats(keyValue.first).get());
+                } else {
+                    spdlog::info("Cannot attach container to Subscriber listeners which are running.");
+                }
+            }
+        }
+    }
+        
 private:
     mutable std::mutex m_mutex;
     RingBuffer & _ringBuffer;

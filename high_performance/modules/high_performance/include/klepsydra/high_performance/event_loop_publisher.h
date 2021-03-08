@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -25,8 +24,8 @@
 #include <memory>
 #include <tuple>
 
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/basic_file_sink.h"
+#include <spdlog/spdlog.h>
+
 
 #include <klepsydra/core/object_pool_publisher.h>
 
@@ -81,8 +80,6 @@ public:
         , _eventName(eventName)
         , _poolSize(poolSize)
     {
-        poolSize == 0 ? _releaseFunction = nullptr :
-                _releaseFunction = std::bind(&EventLoopPublisher<T, BufferSize>::release, this, std::placeholders::_1);
     }
 
     /**
@@ -94,13 +91,10 @@ public:
         {
             int64_t seq = _ringBuffer.try_next();
             if (_ringBuffer[seq].eventData) {
-                if (_ringBuffer[seq].releaseFunction != nullptr) {
-                    (*_ringBuffer[seq].releaseFunction)(_ringBuffer[seq].eventData);
-                }
+                _ringBuffer[seq].eventData.reset();
             }
             _ringBuffer[seq].eventData = std::static_pointer_cast<const void>(event);
             _ringBuffer[seq].eventName = _eventName;
-            _ringBuffer[seq].releaseFunction = _poolSize == 0 ? nullptr : &_releaseFunction;
             _ringBuffer[seq].enqueuedTimeInNs = TimeUtils::getCurrentNanosecondsAsLlu();
             _ringBuffer.publish(seq);
         }
@@ -116,14 +110,9 @@ public:
     long long unsigned int _discardedMessages;
 
 private:
-    void release(std::shared_ptr<const void> & event) {
-        std::shared_ptr<const T> reinterpreted = std::static_pointer_cast<const T>(event);
-        event = std::shared_ptr<const void>();
-    }
 
     RingBuffer & _ringBuffer;
     std::string _eventName;
-    std::function<void(std::shared_ptr<const void> &)> _releaseFunction;
     int _poolSize;
 };
 }

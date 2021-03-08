@@ -2,19 +2,18 @@
 #
 #                           Klepsydra Core Modules
 #              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
-# 
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
-# 
-# You should have received a copy of the GNU Lesser General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#                            All Rights Reserved.
+#
+#  This file is subject to the terms and conditions defined in
+#  file 'LICENSE.md', which is part of this source code package.
+#
+#  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+#  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+#  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+#  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+#  trade secret or copyright law. Dissemination of this information or reproduction of
+#  this material is strictly forbidden unless prior written permission is obtained from
+#  Klepsydra Technologies GmbH.
 #
 #****************************************************************************
 
@@ -54,7 +53,8 @@ message(STATUS "kpsr-build path: " ${KPSR_BUILD_PATH})
 
 # Paths
 SET(CMAKE_MODULE_PATH            ${KPSR_BUILD_PATH}/cmake ${CMAKE_SOURCE_DIR}/../cmake)
-SET(CMAKE_PREFIX_PATH            ${CMAKE_PREFIX_PATH} ${THIRDPARTIES_PATH})
+SET(LIBRARY_OUTPUT_PATH          ${PROJECT_BINARY_DIR}/bin                   CACHE PATH "Library output" FORCE)
+SET(EXECUTABLE_OUTPUT_PATH       ${PROJECT_BINARY_DIR}/bin                   CACHE PATH "Executable output" FORCE)
 
 # Must use GNUInstallDirs to install libraries into correct
 # locations on all platforms.
@@ -101,7 +101,19 @@ endif()
 
 add_definitions(-std=c++11)
 enable_testing()
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    # require at least gcc 4.8
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.5)
+    else()
+        add_definitions(-faligned-new)
+    endif()
+endif()
 
+add_definitions(-fno-strict-overflow)
+if (KPSR_WITH_ZMQ)
+   add_definitions(-Wno-deprecated-declarations)
+   add_definitions(-Wno-comment)
+ENDIF()
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)

@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -51,18 +50,19 @@ public:
      * @param name
      * @param type
      */
-    Subscriber(Container * container, std::string name, std::string type)
+    Subscriber(Container * container, const std::string& name, const std::string& type)
         : _container(container)
         , _name(name)
         , _type(type)
     {}
 
+    virtual ~Subscriber() {}
     /*!
      * @brief registerListener registers an std::function to be invoked everything an event is received.
      * @param name with which the listener is registered.
      * @param listener function to be invoked for an event.
      */
-    virtual void registerListener(const std::string name, const std::function<void(const T &)> listener) = 0;
+    virtual void registerListener(const std::string & name, const std::function<void(const T &)> listener) = 0;
 
     /*!
      * @brief registerListenerOnce registers an std::function to be invoked when an event is received.
@@ -75,13 +75,13 @@ public:
      * @brief removeListener removes the listener from the list of active listeners.
      * @param name
      */
-    virtual void removeListener(const std::string name) = 0;
+    virtual void removeListener(const std::string & name) = 0;
 
     /*!
      * @brief getSubscriptionStats retrieves the performance information of the listener.
      * @param name
      */
-    virtual std::shared_ptr<SubscriptionStats> getSubscriptionStats(const std::string name) = 0;
+    virtual std::shared_ptr<SubscriptionStats> getSubscriptionStats(const std::string & name) = 0;
 
     Container * _container;
 

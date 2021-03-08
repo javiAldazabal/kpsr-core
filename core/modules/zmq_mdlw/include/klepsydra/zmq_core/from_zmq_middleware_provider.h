@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -24,14 +23,13 @@
 #include <map>
 #include <memory>
 
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/basic_file_sink.h"
+#include <spdlog/spdlog.h>
+
 
 #include <zmq.hpp>
 
 #include <klepsydra/core/from_middleware_channel.h>
 
-#include <klepsydra/zmq_core/zhelpers.hpp>
 #include <klepsydra/zmq_core/binary_zmq_poller.h>
 #include <klepsydra/zmq_core/json_zmq_poller.h>
 #include <klepsydra/zmq_core/void_caster_zmq_poller.h>
@@ -72,7 +70,7 @@ public:
      * @param topic zmq topic to listen to
      * @param internalPublisher Klepsydra publisher to send the deserialized event to.
      */
-    void registerToTopic(std::string topic, Publisher<T> * internalPublisher) {
+    void registerToTopic(const std::string & topic, Publisher<T> * internalPublisher) {
         auto search = _subscriberMap.find(topic);
         if (search == _subscriberMap.end()) {
             std::shared_ptr<FromMiddlewareChannel<T, U>> fromMiddlewareChannel(new FromMiddlewareChannel<T, U>(internalPublisher));
@@ -88,7 +86,7 @@ public:
      * @brief unregisterFromTopic
      * @param topic
      */
-    void unregisterFromTopic(std::string topic) {
+    void unregisterFromTopic(const std::string & topic) {
         _zmqPoller->unregisterFromTopic(topic);
     }
 

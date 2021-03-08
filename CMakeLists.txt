@@ -2,19 +2,18 @@
 #
 #                           Klepsydra Core Modules
 #              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+#                            All Rights Reserved.
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+#  This file is subject to the terms and conditions defined in
+#  file 'LICENSE.md', which is part of this source code package.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+#  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+#  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+#  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+#  trade secret or copyright law. Dissemination of this information or reproduction of
+#  this material is strictly forbidden unless prior written permission is obtained from
+#  Klepsydra Technologies GmbH.
 #
 #****************************************************************************
 
@@ -59,7 +58,9 @@ message(STATUS "kpsr-build path: " ${KPSR_BUILD_PATH})
 # ------------------------------------------------------------------------------------------------------
 
 # Paths
-SET(CMAKE_MODULE_PATH ${KPSR_BUILD_PATH}/cmake)
+SET(CMAKE_MODULE_PATH            ${KPSR_BUILD_PATH}/cmake)
+SET(LIBRARY_OUTPUT_PATH          ${PROJECT_BINARY_DIR}/bin                   CACHE PATH "Library output" FORCE)
+SET(EXECUTABLE_OUTPUT_PATH       ${PROJECT_BINARY_DIR}/bin                   CACHE PATH "Executable output" FORCE)
 
 # Must use GNUInstallDirs to install libraries into correct
 # locations on all platforms.
@@ -102,15 +103,27 @@ else()
     add_definitions(-DUSE_GET_WRITE_QUEUE)
 endif()
 
-add_definitions(-std=c++11)
 enable_testing()
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    # require at least gcc 4.8
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.2)
+    else()
+        add_definitions(-faligned-new)
+    endif()
+endif()
+
+add_definitions(-fno-strict-overflow)
+if (KPSR_WITH_ZMQ)
+   add_definitions(-Wno-deprecated-declarations)
+   add_definitions(-Wno-comment)
+ENDIF()
 
 if (KPSR_WITH_CODE_METRICS)
    # Code Coverage
    IF (CMAKE_BUILD_TYPE MATCHES Debug)
        add_definitions(--coverage)
-       SET(CMAKE_CXX_FLAGS "-g -O0 -fprofile-arcs -ftest-coverage")
-       SET(CMAKE_C_FLAGS "-g -O0 -fprofile-arcs -ftest-coverage")
+       SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+       SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
        include(FindPythonInterp)
        include(CodeCoverage)
        setup_target_for_all_tests_coverage()
@@ -223,6 +236,9 @@ configure_file(KlepsydraConfig.cmake.in
 # ... for both
 configure_file(KlepsydraConfigVersion.cmake.in
   "${PROJECT_BINARY_DIR}/KlepsydraConfigVersion.cmake" @ONLY)
+
+configure_file(${CMAKE_SOURCE_DIR}/.githooks/pre-commit.in
+  "${CMAKE_SOURCE_DIR}/.git/hooks/pre-commit" @ONLY)
 
 # Install the KlepsydraConfig.cmake and KlepsydraConfigVersion.cmake
 install(FILES

@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -81,7 +80,7 @@ public:
      * @param poolSize object pool size. 0 for no object pool
      * @return binary serializer klepsydra to zmq publisher
      */
-    Publisher<T> * getBinaryToMiddlewareChannel(std::string topic, int poolSize = 0) {
+    Publisher<T> * getBinaryToMiddlewareChannel(const std::string & topic, int poolSize = 0) {
         auto search = _binaryPublisherMap.find(topic);
         if (search != _binaryPublisherMap.end()) {
             std::shared_ptr<void> internalPointer = search->second;
@@ -89,7 +88,12 @@ public:
             return publisher.get();
         }
         else {
-            std::function<void(Base &)> _initializerFunction = [](Base & event) { event = new std::stringbuf; };
+            std::function<void(Base &)> _initializerFunction = [](Base & event) {
+                                                                   if (!event) {
+                                                                       event = new std::stringbuf;
+                                                                   }
+                                                                   event->pubseekpos(0);
+                                                               };
             BinaryToZMQChannel * toZmqChannel = new BinaryToZMQChannel(_container, topic, poolSize, _initializerFunction, _zmqPublisher);
             std::shared_ptr<Publisher<T>> publisher(new ToMiddlewareChannel<T, Base>(_container, topic + "_zmq", toZmqChannel));
             std::shared_ptr<void> internalPointer = std::static_pointer_cast<void>(publisher);
@@ -105,7 +109,7 @@ public:
      * @param poolSize object pool size. 0 for no object pool
      * @return json serializer klepsydra to zmq publisher
      */
-    Publisher<T> * getJsonToMiddlewareChannel(std::string topic, int poolSize = 0) {
+    Publisher<T> * getJsonToMiddlewareChannel(const std::string & topic, int poolSize = 0) {
         auto search = _jsonPublisherMap.find(topic);
         if (search != _jsonPublisherMap.end()) {
             std::shared_ptr<void> internalPointer = search->second;
@@ -128,7 +132,7 @@ public:
      * @param poolSize object pool size. 0 for no object pool
      * @return non serializer klepsydra to zmq publisher
      */
-    Publisher<T> * getVoidCasterToMiddlewareChannel(std::string topic, int poolSize = 0) {
+    Publisher<T> * getVoidCasterToMiddlewareChannel(const std::string & topic, int poolSize = 0) {
         auto search = _voidCasterPublisherMap.find(topic);
         if (search != _voidCasterPublisherMap.end()) {
             std::shared_ptr<void> internalPointer = search->second;

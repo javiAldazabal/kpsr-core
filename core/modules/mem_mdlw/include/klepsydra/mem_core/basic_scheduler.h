@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -29,20 +28,65 @@
 
 namespace kpsr {
 namespace mem {
+/**
+ * @brief The Basic Scheduler class
+ *
+ * @copyright Klepsydra Technologies 2019-2020.
+ *
+ * @version   2.1.0
+ *
+ */
 class BasicScheduler : public Scheduler {
 public:
-    void startScheduledTask(std::string name, int after, bool repeat, std::shared_ptr<std::function<void ()>> task) override;
+    /**
+     * @brief Start Scheduled Task
+     * @param name Name of task
+     * @param after Start after uS
+     * @param repeat Repeat task
+     * @param task Task.
+     */
+    void startScheduledTask(const std::string & name, int after, bool repeat, std::shared_ptr<std::function<void ()>> task) override;
+    /**
+     * @brief Start Service
+     * @param after Start after uS
+     * @param repeat Repeat service function
+     * @param service Service to execute
+     */
     void startScheduledService(int after, bool repeat, Service * service) override;
-    void stopScheduledTask(std::string name) override;
+    /**
+     * @brief Stop Task
+     * @param name Name of task
+     */
+    void stopScheduledTask(const std::string & name) override;
+    /**
+     * @brief Stop Service
+     * @param service Service to stop
+     */
     void stopScheduledService(Service * service) override;
 
 private:
+    /**
+     * @brief Internel Thread class
+     */
     class ScheduledThread {
     public:
+        /**
+         * @brief ScheduledThread
+         *
+         * @param after Start after this many uS
+         * @param repeat Repeat task
+         * @param task Task
+         */
         ScheduledThread(int after, bool repeat, std::shared_ptr<std::function<void ()>> task);
 
+        /**
+         * @brief
+         */
         void start();
 
+        /**
+         * @brief
+         */
         void stop();
 
     private:

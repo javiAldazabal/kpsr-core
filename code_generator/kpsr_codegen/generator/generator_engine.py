@@ -1,18 +1,21 @@
-# Klepsydra Core Modules
-# Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+#****************************************************************************
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+#                           Klepsydra Core Modules
+#              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+#                            All Rights Reserved.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
+#  This file is subject to the terms and conditions defined in
+#  file 'LICENSE.md', which is part of this source code package.
 #
-# You should have received a copy of the GNU Lesser General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+#  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+#  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+#  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+#  trade secret or copyright law. Dissemination of this information or reproduction of
+#  this material is strictly forbidden unless prior written permission is obtained from
+#  Klepsydra Technologies GmbH.
+#
+#****************************************************************************
 
 # -*- coding: utf-8 -*-
 
@@ -115,19 +118,23 @@ class Generator:
             kidl_files.extend(filenames)
             break
 
-        class_definitions = [self.read_kidl_file(input_dir, kidl_file, disable_zmq) for kidl_file in kidl_files]
-        class_definition_dict = {class_definition.class_name: class_definition for class_definition in class_definitions}
+        related_classes_dict = {}
+        kidl_file_parses = [self.read_kidl_file(input_dir, kidl_file, disable_zmq) for kidl_file in kidl_files]
+        class_definitions = [kidl_file_parse if type(kidl_file_parse) is not dict else related_classes_dict.update(kidl_file_parse) for kidl_file_parse in kidl_file_parses ]
+        class_definitions = [x for x in class_definitions if x is not None]
 
-        [self.generate_code(class_definition_dict, include_path, input_dir, kidl_file,
-                            output_dir, disable_ros, disable_dds, disable_zmq) for kidl_file in kidl_files]
+        class_definition_dict = {class_definition.class_name: class_definition for class_definition in class_definitions}
+        related_classes_dict.update(class_definition_dict)
+
+        [self.generate_code(related_classes_dict, include_path, input_dir, class_name,
+                            output_dir, disable_ros, disable_dds, disable_zmq) for class_name in class_definition_dict]
 
     ## Generate the code from parsed kidl data
-    def generate_code(self, class_definition_dict, include_path, input_dir, main_kidl_file, output_dir,
+    def generate_code(self, class_definition_dict, include_path, input_dir, class_name, output_dir,
                       disable_ros, disable_dds, disable_zmq):
-        main_class_definition = self.read_kidl_file(input_dir, main_kidl_file, disable_zmq)
+        main_class_definition = class_definition_dict[class_name]
         poco_definition = self.poco_processor.process(main_class_definition.class_name, class_definition_dict,
                                                       include_path)
-
         if not main_class_definition.already_exists:
             class_name = split_namespace_class(main_class_definition.class_name)[-1]
             poco_file_name = output_dir + "/poco/include/" + include_path + "/" + \

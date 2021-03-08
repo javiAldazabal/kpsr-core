@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -29,6 +28,7 @@
 #include <algorithm>
 
 #include <klepsydra/core/subscription_stats.h>
+#include <spdlog/spdlog.h>
 
 namespace kpsr {
 /**
@@ -62,7 +62,7 @@ public:
      * @param cb
      * @return
      */
-    unsigned int add_listener(std::string event_id, std::string listener_name, bool isOnce, std::function<void (const Args & ...)> cb);
+    unsigned int add_listener(const std::string & event_id, const std::string & listener_name, bool isOnce, std::function<void (const Args & ...)> cb);
 
     /**
      * @brief add_listener
@@ -72,7 +72,7 @@ public:
      * @param cb
      * @return
      */
-    unsigned int add_listener(std::string event_id, std::string listener_name, bool isOnce, std::function<void ()> cb);
+    unsigned int add_listener(const std::string & event_id, const std::string & listener_name, bool isOnce, std::function<void ()> cb);
 
     template <typename... Args>
     /**
@@ -82,7 +82,7 @@ public:
      * @param cb
      * @return
      */
-    unsigned int on(std::string event_id, std::string listener_name, std::function<void (const Args & ...)> cb);
+    unsigned int on(const std::string & event_id, const std::string & listener_name, std::function<void (const Args & ...)> cb);
     
     /**
      * @brief on
@@ -91,7 +91,7 @@ public:
      * @param cb
      * @return
      */
-    unsigned int on(std::string event_id, std::string listener_name, std::function<void ()> cb);
+    unsigned int on(const std::string & event_id, const std::string & listener_name, std::function<void ()> cb);
 
     template <typename... Args>
     /**
@@ -100,7 +100,7 @@ public:
      * @param cb
      * @return
      */
-    unsigned int once(std::string event_id, std::function<void (const Args & ...)> cb);
+    unsigned int once(const std::string & event_id, std::function<void (const Args & ...)> cb);
 
     /**
      * @brief once
@@ -108,7 +108,7 @@ public:
      * @param cb
      * @return
      */
-    unsigned int once(std::string event_id, std::function<void ()> cb);
+    unsigned int once(const std::string & event_id, std::function<void ()> cb);
 
     /**
      * @brief remove_listener
@@ -123,7 +123,7 @@ public:
      * @param enqueuedTimeNs
      * @param args
      */
-    void emitEvent(std::string event_id, long long unsigned int enqueuedTimeNs, const Args & ... args);
+    void emitEvent(const std::string & event_id, long long unsigned int enqueuedTimeNs, const Args & ... args);
 
     /**
      * @brief _listenerStats
@@ -154,7 +154,7 @@ private:
     {
         Listener() {}
 
-        Listener(unsigned int i, bool isOnce, std::function<void (const Args & ...)> c)
+        Listener(unsigned int i, bool isOnce, const std::function<void (const Args & ...)> & c)
             : ListenerBase(i, isOnce), cb(c) {}
 
         std::function<void (const Args &...)> cb;
@@ -171,7 +171,7 @@ private:
 
 
 template <typename... Args>
-unsigned int kpsr::EventEmitter::add_listener(std::string event_id, std::string listener_name, bool isOnce, std::function<void (const Args & ...)> cb)
+unsigned int kpsr::EventEmitter::add_listener(const std::string & event_id, const std::string & listener_name, bool isOnce, std::function<void (const Args & ...)> cb)
 {
     if (!cb)
     {
@@ -190,27 +190,27 @@ unsigned int kpsr::EventEmitter::add_listener(std::string event_id, std::string 
 }
 
 template <typename... Args>
-unsigned int kpsr::EventEmitter::on(std::string event_id, std::string listener_name, std::function<void (const Args & ...)> cb)
+unsigned int kpsr::EventEmitter::on(const std::string & event_id, const std::string & listener_name, std::function<void (const Args & ...)> cb)
 {
     return add_listener(event_id, listener_name, false, cb);
 }
 
 template <typename... Args>
-unsigned int kpsr::EventEmitter::once(std::string event_id, std::function<void (const Args & ...)> cb)
+unsigned int kpsr::EventEmitter::once(const std::string & event_id, std::function<void (const Args & ...)> cb)
 {
     return add_listener(event_id, "once", true, cb);
 }
 
 template <typename... Args>
-void kpsr::EventEmitter::emitEvent(std::string event_id, long long unsigned int enqueuedTimeNs, const Args & ... args)
+void kpsr::EventEmitter::emitEvent(const std::string & event_id, long long unsigned int enqueuedTimeNs, const Args & ... args)
 {
-    std::list<std::shared_ptr<Listener<Args...>>> handlers;
+    std::vector<std::shared_ptr<Listener<Args...>>> handlers(listeners.size());
     {
         std::lock_guard<std::mutex> lock(mutex);
 
         auto range = listeners.equal_range(event_id);
         handlers.resize(std::distance(range.first, range.second));
-        std::transform(range.first, range.second, handlers.begin(), [] (std::pair<const std::string, std::shared_ptr<ListenerBase>> p) {
+        std::transform(range.first, range.second, handlers.begin(), [] (const std::pair<const std::string, std::shared_ptr<ListenerBase>> &p) {
             auto l = std::dynamic_pointer_cast<Listener<Args...>>(p.second);
             if (l)
             {
@@ -231,12 +231,21 @@ void kpsr::EventEmitter::emitEvent(std::string event_id, long long unsigned int 
             continue;
         }
 
-        _listenerStats[h->id]->startProcessMeassure();
-        if (enqueuedTimeNs > 0) {
-            _listenerStats[h->id]->_totalEnqueuedTimeInNs += (TimeUtils::getCurrentNanosecondsAsLlu() - enqueuedTimeNs);
+        try {
+            auto listenerStatistic = _listenerStats.at(h->id);
+            if (!listenerStatistic) {
+                continue;
+            }
+            listenerStatistic->startProcessMeassure();
+            if (enqueuedTimeNs > 0) {
+                listenerStatistic->_totalEnqueuedTimeInNs += (TimeUtils::getCurrentNanosecondsAsLlu() - enqueuedTimeNs);
+            }
+            h->cb(args...);
+            listenerStatistic->stopProcessMeassure();
+        } catch (std::out_of_range &ex) {
+            // Nothing to do. If statics are removed then the handler & callback function have also been removed from map.
+            spdlog::info("Listener already removed from list");
         }
-        h->cb(args...);
-        _listenerStats[h->id]->stopProcessMeassure();
     }
 }
 

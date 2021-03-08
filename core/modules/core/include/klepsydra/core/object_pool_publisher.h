@@ -2,27 +2,26 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
 #ifndef OBJECT_POOL_PUBLISHER_H
 #define OBJECT_POOL_PUBLISHER_H
 
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/basic_file_sink.h"
+#include <spdlog/spdlog.h>
+
 
 #include <klepsydra/core/publisher.h>
 #include <klepsydra/core/smart_object_pool.h>
@@ -56,7 +55,7 @@ public:
      * \param eventCloner optional function to use instead of the copy.
      */
     ObjectPoolPublisher(Container * container,
-                        const std::string name,
+                        const std::string & name,
                         const std::string type,
                         int poolSize,
                         std::function<void(T &)> initializerFunction,
@@ -69,6 +68,11 @@ public:
         this->_publicationStats._totalEventAllocations = poolSize;
     }
 
+    virtual ~ObjectPoolPublisher() {
+        if (_objectPool) {
+            delete _objectPool;
+        }
+    }
     /*!
      * @brief internalPublish
      * @param eventData
@@ -78,27 +82,27 @@ public:
             try {
                 std::shared_ptr<T> newEvent = std::move(_objectPool->acquire());
                 if (_eventCloner == nullptr) {
-                    (*newEvent.get()) = eventData;
+                    (*newEvent) = eventData;
                 } else {
-                    _eventCloner(eventData, (*newEvent.get()));
+                    _eventCloner(eventData, (*newEvent));
                 }
                 internalPublish(newEvent);
                 return;
             } catch (std::out_of_range ex) {
-                spdlog::info("ObjectPoolPublisher::internalPublish. Object Pool failure.");
+                spdlog::info("ObjectPoolPublisher::internalPublish. Object Pool failure. {}", this->_publicationStats._name);
             }
         }
         this->_publicationStats._totalEventAllocations++;
         if (_eventCloner == nullptr) {
-            std::shared_ptr<T> newEvent = std::shared_ptr<T>(new T(eventData));
+            std::shared_ptr<T> newEvent = std::make_shared<T>(eventData);
             internalPublish(newEvent);
+            newEvent.reset();
         } else {
-            T * t = new T();
+            std::shared_ptr<T> newEvent = std::make_shared<T>();
             if (_initializerFunction != nullptr) {
-                _initializerFunction(* t);
+                _initializerFunction(* newEvent);
             }
-            std::shared_ptr<T> newEvent = std::shared_ptr<T>(t);
-            _eventCloner(eventData, (*newEvent.get()));
+            _eventCloner(eventData, (*newEvent));
             internalPublish(newEvent);
         }
     }
@@ -115,20 +119,19 @@ public:
                     _initializerFunction(*newEvent);
                 }
                 process(*newEvent);
-                internalPublish(newEvent);
+                this->publish(newEvent);
                 return;
             } catch (std::out_of_range ex) {
                 spdlog::info("ObjectPoolPublisher::processAndPublish. Object Pool failure.");
             }
         }
         this->_publicationStats._totalEventAllocations++;
-        T * t = new T();
+        std::shared_ptr<T> newEvent = std::make_shared<T>();
         if (_initializerFunction != nullptr) {
-            _initializerFunction(*t);
+            _initializerFunction(*newEvent);
         }
-        std::shared_ptr<T> newEvent = std::shared_ptr<T>(t);
         process(*newEvent);
-        internalPublish(newEvent);
+        this->publish(newEvent);
     }
 
     /*!

@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -25,6 +24,7 @@
 #include <thread>
 #include <atomic>
 #include <string>
+#include <future>
 
 #include <klepsydra/core/event_emitter.h>
 
@@ -34,6 +34,9 @@ namespace kpsr
 {
 namespace mem
 {
+
+static const long MEM_START_TIMEOUT_MILLISEC = 100;
+    
 /**
  * @brief The InMemoryQueuePoller class
  *
@@ -61,12 +64,17 @@ public:
      */
     InMemoryQueuePoller(EventEmitter & eventEmitter,
                         std::string eventName,
-                        unsigned int sleepPeriodUS)
+                        unsigned int sleepPeriodUS,
+                        long timeoutMS = MEM_START_TIMEOUT_MILLISEC)
         : _running(false)
+        , _started(false)
         , _eventEmitter(eventEmitter)
         , _eventName(eventName)
         , _threadNotifier()
         , _sleepPeriodUS(sleepPeriodUS)
+        , _loopFunction(std::bind(&InMemoryQueuePoller::pollingLoop, this))
+        , _threadNotifierFuture(_loopFunction.get_future())
+        , _timeoutUs(timeoutMS*1000)
     {}
 
     /**
@@ -79,15 +87,20 @@ public:
      */
     void stop();
 
-    ~InMemoryQueuePoller();
+    virtual ~InMemoryQueuePoller();
 
     /**
      * @brief _running
      */
     std::atomic<bool> _running;
 
+    /**
+     * @brief isRunning
+     */
+    bool isRunning();
 private:
-
+    std::atomic<bool> _started;
+    bool isStarted();
     void pollingLoop();
 
     virtual void takeEventFromQueue() = 0;
@@ -95,9 +108,12 @@ private:
 protected:
     EventEmitter & _eventEmitter;
     std::string _eventName;
-
     std::thread _threadNotifier;
     unsigned int _sleepPeriodUS;
+private:
+    std::packaged_task<void()> _loopFunction;
+    std::future<void> _threadNotifierFuture;
+    long _timeoutUs;
 };
 }
 }

@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -36,6 +35,7 @@
 #include "vector3_ros_mapper.h"
 #include "quaternion_ros_mapper.h"
 #include "imu_ros_mapper.h"
+#include "pose_stamped_ros_mapper.h"
 
 TEST(KpsrRosCodegeTest, headerMapperTest) {
 
@@ -46,16 +46,16 @@ TEST(KpsrRosCodegeTest, headerMapperTest) {
     ros::NodeHandle nodeHandle;
     ros::Rate rate(100);
 
-    ros::Publisher stringPublisher = nodeHandle.advertise<std_msgs::Header>("kpsr_ros_codegen_test_topicA", 1);
-
-    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
-
-    kpsr::Publisher<kpsr::geometry::Header> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::Header, std_msgs::Header>("kpsr_ros_codegen_test_topicA", 1, nullptr, stringPublisher);
-
     kpsr::EventEmitterMiddlewareProvider<kpsr::geometry::Header> basicProvider(nullptr, "test", 0, nullptr, nullptr);
 
     kpsr::ros_mdlw::FromRosMiddlewareProvider fromRosProvider(nodeHandle);
-    fromRosProvider.registerToTopic<kpsr::geometry::Header, std_msgs::Header>("kpsr_ros_codegen_test_topicA", 1, basicProvider.getPublisher());
+    fromRosProvider.registerToTopic<kpsr::geometry::Header, std_msgs::Header>("kpsr_ros_codegen_test_topicA", 10, basicProvider.getPublisher());
+
+    ros::Publisher stringPublisher = nodeHandle.advertise<std_msgs::Header>("kpsr_ros_codegen_test_topicA", 10, true);
+
+    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
+
+    kpsr::Publisher<kpsr::geometry::Header> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::Header, std_msgs::Header>("kpsr_ros_codegen_test_topicA", 10, nullptr, stringPublisher);
 
     kpsr::mem::CacheListener<kpsr::geometry::Header> cacheListener;
     basicProvider.getSubscriber()->registerListener("cacheListener", cacheListener.cacheListenerFunction);
@@ -113,16 +113,16 @@ TEST(KpsrRosCodegeTest, gpsMapperTest) {
     ros::NodeHandle nodeHandle;
     ros::Rate rate(100);
 
-    ros::Publisher stringPublisher = nodeHandle.advertise<sensor_msgs::NavSatFix>("kpsr_ros_codegen_test_topicB", 1);
-
-    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
-
-    kpsr::Publisher<kpsr::geometry::Gps> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::Gps, sensor_msgs::NavSatFix>("kpsr_ros_codegen_test_topicB", 1, nullptr, stringPublisher);
-
     kpsr::EventEmitterMiddlewareProvider<kpsr::geometry::Gps> basicProvider(nullptr, "test", 0, nullptr, nullptr);
 
     kpsr::ros_mdlw::FromRosMiddlewareProvider fromRosProvider(nodeHandle);
-    fromRosProvider.registerToTopic<kpsr::geometry::Gps, sensor_msgs::NavSatFix>("kpsr_ros_codegen_test_topicB", 1, basicProvider.getPublisher());
+    fromRosProvider.registerToTopic<kpsr::geometry::Gps, sensor_msgs::NavSatFix>("kpsr_ros_codegen_test_topicB", 10, basicProvider.getPublisher());
+
+    ros::Publisher stringPublisher = nodeHandle.advertise<sensor_msgs::NavSatFix>("kpsr_ros_codegen_test_topicB", 10, true);
+
+    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
+
+    kpsr::Publisher<kpsr::geometry::Gps> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::Gps, sensor_msgs::NavSatFix>("kpsr_ros_codegen_test_topicB", 10, nullptr, stringPublisher);
 
     kpsr::mem::CacheListener<kpsr::geometry::Gps> cacheListener;
     basicProvider.getSubscriber()->registerListener("cacheListener", cacheListener.cacheListenerFunction);
@@ -138,7 +138,7 @@ TEST(KpsrRosCodegeTest, gpsMapperTest) {
     kpsrPublisher->publish(event);
     ros::spinOnce();
     rate.sleep();
-	
+
     event.seq++;
     event.altitude = 1.0;
     event.latitude = 1.1;
@@ -192,16 +192,16 @@ TEST(KpsrRosCodegeTest, vector3MapperTest) {
     ros::NodeHandle nodeHandle;
     ros::Rate rate(100);
 
-    ros::Publisher stringPublisher = nodeHandle.advertise<geometry_msgs::Vector3>("kpsr_ros_codegen_test_topicC", 1);
-
-    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
-
-    kpsr::Publisher<kpsr::geometry::Vector3> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::Vector3, geometry_msgs::Vector3>("kpsr_ros_codegen_test_topicC", 1, nullptr, stringPublisher);
-
     kpsr::EventEmitterMiddlewareProvider<kpsr::geometry::Vector3> basicProvider(nullptr, "test", 0, nullptr, nullptr);
 
     kpsr::ros_mdlw::FromRosMiddlewareProvider fromRosProvider(nodeHandle);
-    fromRosProvider.registerToTopic<kpsr::geometry::Vector3, geometry_msgs::Vector3>("kpsr_ros_codegen_test_topicC", 1, basicProvider.getPublisher());
+    fromRosProvider.registerToTopic<kpsr::geometry::Vector3, geometry_msgs::Vector3>("kpsr_ros_codegen_test_topicC", 10, basicProvider.getPublisher());
+
+    ros::Publisher stringPublisher = nodeHandle.advertise<geometry_msgs::Vector3>("kpsr_ros_codegen_test_topicC", 10, true);
+
+    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
+
+    kpsr::Publisher<kpsr::geometry::Vector3> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::Vector3, geometry_msgs::Vector3>("kpsr_ros_codegen_test_topicC", 10, nullptr, stringPublisher);
 
     kpsr::mem::CacheListener<kpsr::geometry::Vector3> cacheListener;
     basicProvider.getSubscriber()->registerListener("cacheListener", cacheListener.cacheListenerFunction);
@@ -217,7 +217,7 @@ TEST(KpsrRosCodegeTest, vector3MapperTest) {
     kpsrPublisher->publish(event);
     ros::spinOnce();
     rate.sleep();
-	
+
     event.seq++;
     event.x = 1.0;
     event.y = 1.1;
@@ -273,16 +273,16 @@ TEST(KpsrRosCodegeTest, quaternionMapperTest) {
     ros::NodeHandle nodeHandle;
     ros::Rate rate(100);
 
-    ros::Publisher stringPublisher = nodeHandle.advertise<geometry_msgs::Quaternion>("kpsr_ros_codegen_test_topicD", 1);
-
-    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
-
-    kpsr::Publisher<kpsr::geometry::Quaternion> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::Quaternion, geometry_msgs::Quaternion>("kpsr_ros_codegen_test_topicD", 1, nullptr, stringPublisher);
-
     kpsr::EventEmitterMiddlewareProvider<kpsr::geometry::Quaternion> basicProvider(nullptr, "test", 0, nullptr, nullptr);
 
     kpsr::ros_mdlw::FromRosMiddlewareProvider fromRosProvider(nodeHandle);
-    fromRosProvider.registerToTopic<kpsr::geometry::Quaternion, geometry_msgs::Quaternion>("kpsr_ros_codegen_test_topicD", 1, basicProvider.getPublisher());
+    fromRosProvider.registerToTopic<kpsr::geometry::Quaternion, geometry_msgs::Quaternion>("kpsr_ros_codegen_test_topicD", 10, basicProvider.getPublisher());
+
+    ros::Publisher stringPublisher = nodeHandle.advertise<geometry_msgs::Quaternion>("kpsr_ros_codegen_test_topicD", 10, true);
+
+    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
+
+    kpsr::Publisher<kpsr::geometry::Quaternion> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::Quaternion, geometry_msgs::Quaternion>("kpsr_ros_codegen_test_topicD", 10, nullptr, stringPublisher);
 
     kpsr::mem::CacheListener<kpsr::geometry::Quaternion> cacheListener;
     basicProvider.getSubscriber()->registerListener("cacheListener", cacheListener.cacheListenerFunction);
@@ -361,16 +361,17 @@ TEST(KpsrRosCodegeTest, imuMapperTest) {
     ros::NodeHandle nodeHandle;
     ros::Rate rate(100);
 
-    ros::Publisher stringPublisher = nodeHandle.advertise<sensor_msgs::Imu>("kpsr_ros_codegen_test_topicE", 1);
-
-    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
-
-    kpsr::Publisher<kpsr::geometry::Imu> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::Imu, sensor_msgs::Imu>("kpsr_ros_codegen_test_topicE", 1, nullptr, stringPublisher);
-
     kpsr::EventEmitterMiddlewareProvider<kpsr::geometry::Imu> basicProvider(nullptr, "test", 0, nullptr, nullptr);
 
     kpsr::ros_mdlw::FromRosMiddlewareProvider fromRosProvider(nodeHandle);
-    fromRosProvider.registerToTopic<kpsr::geometry::Imu, sensor_msgs::Imu>("kpsr_ros_codegen_test_topicE", 1, basicProvider.getPublisher());
+    fromRosProvider.registerToTopic<kpsr::geometry::Imu, sensor_msgs::Imu>("kpsr_ros_codegen_test_topicE", 10, basicProvider.getPublisher());
+    rate.sleep();
+
+    ros::Publisher stringPublisher = nodeHandle.advertise<sensor_msgs::Imu>("kpsr_ros_codegen_test_topicE", 10, true);
+
+    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
+
+    kpsr::Publisher<kpsr::geometry::Imu> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::Imu, sensor_msgs::Imu>("kpsr_ros_codegen_test_topicE", 10, nullptr, stringPublisher);
 
     kpsr::mem::CacheListener<kpsr::geometry::Imu> cacheListener;
     basicProvider.getSubscriber()->registerListener("cacheListener", cacheListener.cacheListenerFunction);
@@ -494,4 +495,59 @@ TEST(KpsrRosCodegeTest, imuMapperTest) {
     ASSERT_EQ(event.linear_acceleration.y, cacheListener.getLastReceivedEvent()->linear_acceleration.y);
     ASSERT_EQ(event.linear_acceleration.z, cacheListener.getLastReceivedEvent()->linear_acceleration.z);
 
+}
+
+TEST(KpsrRosCodegeTest, poseStampedTest) {
+        int argc = 0;
+    char ** argv = nullptr;
+
+    ros::init(argc, argv, "kpsr_ros_codegen_test");
+    ros::NodeHandle nodeHandle;
+    ros::Rate rate(100);
+
+    kpsr::EventEmitterMiddlewareProvider<kpsr::geometry::PoseStamped> basicProvider(nullptr, "test", 0, nullptr, nullptr);
+
+    kpsr::ros_mdlw::FromRosMiddlewareProvider fromRosProvider(nodeHandle);
+    fromRosProvider.registerToTopic<kpsr::geometry::PoseStamped, geometry_msgs::PoseStamped>("kpsr_ros_codegen_test_topicE", 10, basicProvider.getPublisher());
+    rate.sleep();
+
+    ros::Publisher stringPublisher = nodeHandle.advertise<geometry_msgs::PoseStamped>("kpsr_ros_codegen_test_topicE", 10, true);
+
+    kpsr::ros_mdlw::ToRosMiddlewareProvider toRosProvider(nullptr);
+
+    kpsr::Publisher<kpsr::geometry::PoseStamped> * kpsrPublisher = toRosProvider.getToMiddlewareChannel<kpsr::geometry::PoseStamped, geometry_msgs::PoseStamped>("kpsr_ros_codegen_test_topicE", 1, nullptr, stringPublisher);
+
+    kpsr::mem::CacheListener<kpsr::geometry::PoseStamped> cacheListener;
+    basicProvider.getSubscriber()->registerListener("cacheListener", cacheListener.cacheListenerFunction);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    ASSERT_EQ(cacheListener.counter, 0);
+
+    int num_events = 5;
+    for (int i = 0; i < num_events; i++) {
+        kpsr::geometry::PoseStamped event;
+
+        event.header.seq = i;
+        event.header.frame_id = "hola." + std::to_string(i);
+        event.pose.position.x = 1;
+        event.pose.position.y = 2;
+        event.pose.position.z = 3;
+        event.pose.orientation.seq = 1;
+        event.pose.orientation.x = 0.0;
+        event.pose.orientation.y = 0.1;
+        event.pose.orientation.z = 0.2;
+        event.pose.orientation.w = 0.3;
+        kpsrPublisher->publish(event);
+        ros::spinOnce();
+        rate.sleep();
+    }
+
+    while (cacheListener.counter < num_events) {
+        ros::spinOnce();
+        rate.sleep();
+    }
+    rate.sleep();
+    ASSERT_EQ(cacheListener.counter, num_events);
+    auto lastEvent = cacheListener.getLastReceivedEvent();
+    EXPECT_EQ(lastEvent->header.seq, num_events - 1); // seq number is automatically filled by ROS for pose stamped
+    EXPECT_EQ(lastEvent->header.frame_id, "hola." + std::to_string(num_events-1));
 }

@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -23,6 +22,7 @@
 
 #include <functional>
 #include <memory>
+#include <future>
 
 #include <klepsydra/core/subscription_stats.h>
 
@@ -33,6 +33,9 @@ namespace kpsr
 {
 namespace high_performance
 {
+
+static const long MULTIPLEXER_START_TIMEOUT_MILLISEC = 100;
+
 template <typename TEvent, std::size_t BufferSize>
 /**
  * @brief The DataMultiplexerListener class
@@ -52,32 +55,65 @@ public:
     using BatchProcessor = disruptor4cpp::batch_event_processor<RingBuffer>;
 
     DataMultiplexerListener(const std::function<void(TEvent)> & listener,
-                      RingBuffer & ringBuffer,
-                      std::shared_ptr<SubscriptionStats> listenerStat)
+                            RingBuffer & ringBuffer,
+                            const std::shared_ptr<SubscriptionStats>& listenerStat,
+                            long timeoutMS = MULTIPLEXER_START_TIMEOUT_MILLISEC)
         : _ringBuffer(ringBuffer)
-        , _eventHandler(listener, listenerStat){
-
+        , _eventHandler(listener, listenerStat)
+        , _name(listenerStat->_name)
+        , _started(false)
+        , _batchProcessorTask([this] {
+                                  std::vector<disruptor4cpp::sequence * > sequences_to_add;
+                                  sequences_to_add.resize(1);
+                                  sequences_to_add[0] = &batchEventProcessor.get()->get_sequence();
+                                  this->_ringBuffer.add_gating_sequences(sequences_to_add);
+                                  this->batchEventProcessor->run();
+                              })
+        , _batchProcessorThread()
+        , _batchProcessorThreadFuture(_batchProcessorTask.get_future())
+        , _timeoutUs(timeoutMS*1000) {
         auto barrier = _ringBuffer.new_barrier();
         batchEventProcessor = std::unique_ptr<BatchProcessor>(new BatchProcessor(_ringBuffer, std::move(barrier), _eventHandler));
     }
 
     void start() {
-        batchProcessorThread = std::thread([this] {
-            std::vector<disruptor4cpp::sequence * > sequences_to_add;
-            sequences_to_add.resize(1);
-            sequences_to_add[0] = &batchEventProcessor.get()->get_sequence();
-            this->_ringBuffer.add_gating_sequences(sequences_to_add);
-            this->batchEventProcessor->run();
-        });
+        if (_started) {
+            return;
+        }
+        _batchProcessorThread = std::thread(std::move(_batchProcessorTask));
+        _started = true;
+        long counterUs = 0;
+        while(!this->batchEventProcessor->is_running()) {
+            if (counterUs > _timeoutUs) {
+                throw std::runtime_error("Could not start the DataMultiplexerListener");
+            }
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            counterUs += 100;
+        }
     }
 
-    std::unique_ptr<
-    BatchProcessor> batchEventProcessor;
-    std::thread batchProcessorThread;
+    void stop() {
+        if (!_started) {
+            return;
+        }
+        batchEventProcessor->halt();
+        if (_batchProcessorThread.joinable())
+        {
+            _batchProcessorThread.join();
+        }
+    }
+
+    std::unique_ptr<BatchProcessor> batchEventProcessor;
 
 private:
     RingBuffer & _ringBuffer;
     DataMultiplexerEventHandler<TEvent> _eventHandler;
+    std::string _name;
+    std::atomic<bool> _started;
+    std::packaged_task<void()> _batchProcessorTask;
+    std::thread _batchProcessorThread;
+    std::future<void> _batchProcessorThreadFuture;
+    long _timeoutUs;
 };
 }
 }

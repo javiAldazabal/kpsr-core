@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -50,7 +49,7 @@ private:
 
         void operator()(T* ptr) {
             if (auto pool_ptr = pool_.lock()) {
-                (*pool_ptr.get())->add(std::unique_ptr<T, D>{ptr});
+                (*pool_ptr)->add(std::unique_ptr<T, D>{ptr});
             }
             else
                 D{}(ptr);
@@ -81,15 +80,20 @@ public:
 
         pool_ = new LockFreeStack<std::unique_ptr<T, D> >(size, poolInitializer);
         for (int i = 0; i < size; i ++) {
-            T * t = new T();
-            add(std::unique_ptr<T, D>(t));
+            std::unique_ptr<T, D> t (new T());
             if (initializerFunction != nullptr) {
                 initializerFunction(*t);
             }
+            add(std::move(t));
         }
     }
 
-    virtual ~SmartObjectPool(){}
+    virtual ~SmartObjectPool(){
+        std::unique_ptr<T, D> t_ptr;
+        while (pool_->pop(t_ptr)) {
+            t_ptr.reset();
+        }
+        delete pool_;}
 
     /*!
      * @brief acquire fetch an element of the pool. It comes as a unique pointer. When no references are hanging, the object will return to the pool.

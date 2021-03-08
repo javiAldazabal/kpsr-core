@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -56,18 +55,26 @@ namespace {{ namespace }} {
 class {{ definition.class_name }} {% if definition.parent_class %} : public {{ definition.parent_class.class_name }} {% endif %} {
 public:
 
-   {{ definition.class_name }}() {}
+   {{ definition.class_name }}()
+      :
+{%- if definition.parent_class %} {{ definition.parent_class.class_name }} ()
+      ,
+{%- endif %} {{ definition.fields[0].field_name }}()
+{%- for field in definition.fields[1:] %}
+      , {{ field.field_name }}()
+{%- endfor %}
+   {}
 
    {{ definition.class_name }}(
 {%- if definition.parent_class %}
 {%- for field in definition.parent_class.fields %}
-          {{ field.field_type }} {{ field.field_name }},
+       {{ field.field_type }} {{ field.field_name }},
 {%- endfor %}
 {%- endif %}
 {%- for field in definition.fields[:-1] %}
-          {{ field.field_type }} {{ field.field_name }},
+       {{ field.field_type }} {{ field.field_name }},
 {%- endfor %}
-          {{ definition.fields[-1].field_type }} {{ definition.fields[-1].field_name }})
+       {{ definition.fields[-1].field_type }} {{ definition.fields[-1].field_name }})
       :
 {%- if definition.parent_class %} {{ definition.parent_class.class_name }} (
 {%- for field in definition.parent_class.fields[:-1] %}{{ field.field_name }}, {% endfor %} {{ definition.parent_class.fields[-1].field_name }})

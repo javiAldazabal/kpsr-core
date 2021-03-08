@@ -1,18 +1,21 @@
-# Klepsydra Core Modules
-# Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+#****************************************************************************
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+#                           Klepsydra Core Modules
+#              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+#                            All Rights Reserved.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
+#  This file is subject to the terms and conditions defined in
+#  file 'LICENSE.md', which is part of this source code package.
 #
-# You should have received a copy of the GNU Lesser General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+#  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+#  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+#  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+#  trade secret or copyright law. Dissemination of this information or reproduction of
+#  this material is strictly forbidden unless prior written permission is obtained from
+#  Klepsydra Technologies GmbH.
+#
+#****************************************************************************
 
 # -*- coding: utf-8 -*-
 
@@ -66,7 +69,7 @@ def camelCase(string):
     return output[0].lower() + output[1:]
 
 
-def process_mapper_instances(class_definition, class_definition_dict):
+def process_mapper_instances(class_definition, class_definition_dict, include_path):
     mapper_instances = dict()
 
     for field in class_definition.fields:
@@ -81,8 +84,8 @@ def process_mapper_instances(class_definition, class_definition_dict):
                 include_file = ros_middleware_definition.mapper_include_file
             else:
                 class_name = split_namespace_class(field.field_type)[-1]
-                include_file = "\"%s%s\"" % (convert_to_lower_case_underscores(class_name), "_ros_mapper.h")
-
+                include_filename = "%s%s" % (convert_to_lower_case_underscores(class_name), "_ros_mapper.h")
+                include_file = "<" + os.path.join(project_name, include_filename) + ">"
             ros_mapper_definition = RosMapperInstanceDefinition(mapper_name, field.field_type, ros_type, include_file)
 
             mapper_instances[mapper_name] = ros_mapper_definition
@@ -108,7 +111,7 @@ class RosMapperProcessor:
         class_definition = class_definition_dict.get(class_definition_name)
 
         define_class_name = convert('%sMapper' % split_namespace_class(class_definition.class_name)[-1]).upper()
-        mapper_instances = process_mapper_instances(class_definition, class_definition_dict)
+        mapper_instances = process_mapper_instances(class_definition, class_definition_dict, include_path)
         custom_includes = process_custom_includes(class_definition, mapper_instances, include_path)
 
         ros_middleware_definition = class_definition.middlewares[MiddlewareType.ROS]

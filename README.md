@@ -2,6 +2,13 @@
   <img width="25%" height="25%"src="./images/klepsydra_logo.jpg">
 </p>
 
+Setup | Status
+--- | ---
+Minimal | [![Build Status](https://jenkins1.klepsydra.com/buildStatus/icon?job=kpsr-core%2Fmaster)](https://jenkins1.klepsydra.com/view/Core/job/kpsr-core/job/master/)
+ZMQ | [![Build Status](https://jenkins1.klepsydra.com/buildStatus/icon?job=kpsr-zmq-core%2Fmaster)](https://jenkins1.klepsydra.com/view/Core/job/kpsr-zmq-core/job/master/)
+ROS 16.04 | [![Build Status](https://jenkins1.klepsydra.com/buildStatus/icon?job=kpsr-ros-core-16.04%2Fmaster)](https://jenkins1.klepsydra.com/view/Core/job/kpsr-ros-core-16.04/job/master/)
+ROS 18.04 | [![Build Status](https://jenkins1.klepsydra.com/buildStatus/icon?job=kpsr-ros-core-18.04%2Fmaster)](https://jenkins1.klepsydra.com/view/Core/job/kpsr-ros-core-18.04/job/master/)
+
 # Installation Instructions
 
 ## System dependencies
@@ -24,7 +31,7 @@
 
 ## System requirements
 
-	sudo apt-get install build-essentials
+	sudo apt-get install build-essential
 	sudo apt-get install git
 	sudo apt-get install cmake
 	sudo apt-get install python3-pip
@@ -73,7 +80,6 @@ Example
 cmake -DKPSR_WITH_SOCKET=true ..
 ```
 
-
 ### ROS installation
 
 We assume all ros environment variables are properly set up. Also kpsr-core must be installed first.
@@ -88,6 +94,7 @@ ln -s PATH_TO_KPSR_CORE/core/modules/ros_mdlw/kpsr_ros_core
 Next compile and install the ros projects so that they are available in your ros workspace for future projects.
 
 ```
+cd ..
 catkin_make install
 ```
 

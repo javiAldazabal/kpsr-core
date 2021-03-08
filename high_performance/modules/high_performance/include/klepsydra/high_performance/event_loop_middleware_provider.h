@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -75,13 +74,15 @@ public:
      * @brief EventLoopMiddlewareProvider
      * @param container
      */
-    EventLoopMiddlewareProvider(Container * container)
+    EventLoopMiddlewareProvider(Container * container, const std::string & name = "kpsr_EL")
         : _container(container)
         , _ringBuffer()
         , _eventEmitter()
-        , _eventLoop(_eventEmitter, _ringBuffer)
+        , _eventLoop(_eventEmitter, _ringBuffer, name)
         , _scheduler(nullptr)
     {}
+
+    ~EventLoopMiddlewareProvider() { if (_scheduler) delete _scheduler;}
 
     template<class T>
     /**
@@ -103,10 +104,12 @@ public:
             return publisher.get();
         }
         else {
-            std::shared_ptr<Publisher<T>> publisher(new EventLoopPublisher<T, BufferSize>(_container, _ringBuffer, eventName, poolSize, initializerFunction, eventCloner));
+            std::shared_ptr<EventLoopPublisher<T, BufferSize>> publisher = std::make_shared<
+                EventLoopPublisher<T, BufferSize>>(
+                    _container, _ringBuffer, eventName, poolSize, initializerFunction, eventCloner);
             std::shared_ptr<void> internalPointer = std::static_pointer_cast<void>(publisher);
             _publisherMap[eventName] = internalPointer;
-            return publisher.get();
+            return std::static_pointer_cast<Publisher<T>>(publisher).get();
         }
     }
 
@@ -116,7 +119,7 @@ public:
      * @param eventName
      * @return
      */
-    Subscriber<T> * getSubscriber(std::string eventName) {
+    Subscriber<T> * getSubscriber(const std::string & eventName) {
         auto search = _subscriberMap.find(eventName);
         if (search != _subscriberMap.end()) {
             std::shared_ptr<void> internalPointer = search->second;
@@ -124,10 +127,10 @@ public:
             return subscriber.get();
         }
         else {
-            std::shared_ptr<Subscriber<T>> subscriber(new EventLoopSubscriber<T>(_container, _eventEmitter, eventName));
+            std::shared_ptr<EventLoopSubscriber<T>> subscriber = std::make_shared<EventLoopSubscriber<T>>(_container, _eventEmitter, eventName);
             std::shared_ptr<void> internalPointer = std::static_pointer_cast<void>(subscriber);
             _subscriberMap[eventName] = internalPointer;
-            return subscriber.get();
+            return std::static_pointer_cast<Subscriber<T>>(subscriber).get();
         }
     }
 
@@ -135,7 +138,7 @@ public:
      * @brief place a function into the event loop. It can be placed for once or repeated execution.
      * @return
      */
-    Scheduler * getScheduler(std::string name = "") {
+    Scheduler * getScheduler(const std::string & name = "") {
         std::string eventName = name.empty() ? "EVENTLOOP_SCHEDULER" : name;
         if (_scheduler == nullptr) {
             std::shared_ptr<EventLoopFunctionExecutorListener> subscriber(new EventLoopFunctionExecutorListener(_container, _eventEmitter, eventName));
@@ -159,6 +162,24 @@ public:
 
     bool isRunning() {
         return _eventLoop.isStarted();
+    }
+
+    void setContainer(Container * container) {
+        if (!isRunning()) {
+            _container = container;
+            if (_scheduler && (_subscriberMap.size() == 1) && (_publisherMap.size() == 1)) {
+                if (_container) {
+                    for (auto& keyValue : _subscriberMap) {
+                        std::shared_ptr<EventLoopFunctionExecutorListener> schedulerSubscriber = std::static_pointer_cast<EventLoopFunctionExecutorListener>(keyValue.second);
+                        schedulerSubscriber->setContainer(container);
+                        Publisher<std::function<void()>> *schedulerPublisher = getPublisher<std::function<void()> > (keyValue.first, 0, nullptr, nullptr);
+                        _container->attach(&schedulerPublisher->_publicationStats);
+                    }
+                }
+            } else if ((_subscriberMap.size() > 0) || (_publisherMap.size() > 0 )) {
+                spdlog::info("Container cannot be attached to already existing subscribers or publishers. Only subscribers/publishers declared after this call will attach to container.");
+            }
+        }
     }
 
 private:

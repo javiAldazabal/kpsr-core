@@ -2,19 +2,18 @@
 #
 #                           Klepsydra Core Modules
 #              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+#                            All Rights Reserved.
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+#  This file is subject to the terms and conditions defined in
+#  file 'LICENSE.md', which is part of this source code package.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+#  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+#  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+#  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+#  trade secret or copyright law. Dissemination of this information or reproduction of
+#  this material is strictly forbidden unless prior written permission is obtained from
+#  Klepsydra Technologies GmbH.
 #
 #****************************************************************************
 
@@ -36,6 +35,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   geometry_msgs
+  sensor_msgs
   kpsr_ros_serialization
   kpsr_ros_core
   message_generation
@@ -101,6 +101,7 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   geometry_msgs
+  sensor_msgs
 )
 
 ################################################
@@ -152,6 +153,12 @@ include_directories(
   ../../modules/codegen/gen_test2/poco/include
   ../../modules/codegen/gen_test3/poco/include
   ../../modules/codegen/gen_test4/poco/include
+  ../../modules/codegen/gen_test5/poco/include
+  ../../modules/codegen/gen_test1/rosstg/include
+  ../../modules/codegen/gen_test2/rosstg/include
+  ../../modules/codegen/gen_test3/rosstg/include
+  ../../modules/codegen/gen_test4/rosstg/include
+  ../../modules/codegen/gen_test5/rosstg/include
   ../../modules/codegen/include
   ${catkin_INCLUDE_DIRS}
   ${KLEPSYDRA_INCLUDE_DIRS}
@@ -160,10 +167,8 @@ include_directories(
 # link_directories()
 
 ## Declare a C++ library
-add_library(kpsr_ros_codegen
+add_library(kpsr_ros_codegen INTERFACE
 )
-
-set_target_properties(kpsr_ros_codegen PROPERTIES LINKER_LANGUAGE CXX)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -177,8 +182,11 @@ add_dependencies(kpsr_ros_codegen kpsr_ros_codegen_generate_messages_cpp ${${PRO
 ## same as for the library above
 # add_dependencies(kpsr_ros_codegen_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+target_include_directories(kpsr_ros_codegen INTERFACE
+  include)
+
 ## Specify libraries to link a library or executable target against
-target_link_libraries(kpsr_ros_codegen
+target_link_libraries(kpsr_ros_codegen INTERFACE
   ${catkin_LIBRARIES}
   yaml-cpp
   ${KLEPSYDRA_CORE_LIBRARIES}
@@ -224,7 +232,8 @@ catkin_add_gtest(${PROJECT_NAME}-test test/main.cpp
                  test/kpsr_ros_codegen_test1.cpp
                  test/kpsr_ros_codegen_test2.cpp
                  test/kpsr_ros_codegen_test3.cpp
-                 test/kpsr_ros_codegen_test4.cpp)
+                 test/kpsr_ros_codegen_test4.cpp
+                 test/kpsr_ros_codegen_test5.cpp)
 
 if(TARGET ${PROJECT_NAME}-test)
   target_link_libraries(${PROJECT_NAME}-test 

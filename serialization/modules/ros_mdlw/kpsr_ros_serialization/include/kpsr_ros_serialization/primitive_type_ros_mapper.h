@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -163,6 +162,39 @@ public:
      * @param message
      */
     void toMiddleware(const float& event, std_msgs::Float32& message) {
+        message.data = event;
+    }
+};
+
+template<>
+/**
+ * @brief The Mapper<double, std_msgs::Float64> class
+ *
+ * @copyright Klepsydra Technologies 2019-2020.
+ *
+ * @version 2.0.1
+ *
+ * @ingroup kpsr-rosstg-serialization
+ *
+ */
+class Mapper<double, std_msgs::Float64>
+{
+public:
+    /**
+     * @brief fromMiddleware
+     * @param message
+     * @param event
+     */
+    void fromMiddleware(const std_msgs::Float64& message, double& event) {
+        event  = message.data;
+    }
+
+    /**
+     * @brief toMiddleware
+     * @param event
+     * @param message
+     */
+    void toMiddleware(const double& event, std_msgs::Float64& message) {
         message.data = event;
     }
 };

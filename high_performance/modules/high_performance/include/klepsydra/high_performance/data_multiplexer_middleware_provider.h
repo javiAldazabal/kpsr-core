@@ -2,19 +2,18 @@
 *
 *                           Klepsydra Core Modules
 *              Copyright (C) 2019-2020  Klepsydra Technologies GmbH
+*                            All Rights Reserved.
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
+*  This file is subject to the terms and conditions defined in
+*  file 'LICENSE.md', which is part of this source code package.
 *
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*  NOTICE:  All information contained herein is, and remains the property of Klepsydra
+*  Technologies GmbH and its suppliers, if any. The intellectual and technical concepts
+*  contained herein are proprietary to Klepsydra Technologies GmbH and its suppliers and
+*  may be covered by Swiss and Foreign Patents, patents in process, and are protected by
+*  trade secret or copyright law. Dissemination of this information or reproduction of
+*  this material is strictly forbidden unless prior written permission is obtained from
+*  Klepsydra Technologies GmbH.
 *
 ****************************************************************************/
 
@@ -73,7 +72,7 @@ public:
      * @param container
      * @param name
      */
-    DataMultiplexerMiddlewareProvider(Container * container, std::string name)
+    DataMultiplexerMiddlewareProvider(Container * container, const std::string & name)
         : _ringBuffer()
         , _publisher(container, name, nullptr, _ringBuffer)
         , _subscriber(container, name, _ringBuffer)
@@ -85,7 +84,7 @@ public:
      * @param name
      * @param eventInitializer function to initialize the events allocated in the ring buffer
      */
-    DataMultiplexerMiddlewareProvider(Container * container, std::string name,
+    DataMultiplexerMiddlewareProvider(Container * container, const std::string & name,
                                 std::function<void(TEvent &)> eventInitializer)
         : _ringBuffer([&eventInitializer](EventData<TEvent> & event) { eventInitializer(event.eventData); })
         , _publisher(container, name, nullptr, _ringBuffer)
@@ -98,7 +97,7 @@ public:
      * @param name
      * @param event used as event to clone the events allocated in the ring buffer.
      */
-    DataMultiplexerMiddlewareProvider(Container * container, std::string name, const TEvent & event)
+    DataMultiplexerMiddlewareProvider(Container * container, const std::string & name, const TEvent & event)
         : _modelEvent(new EventData<TEvent>(event))
         , _ringBuffer(_modelEvent)
         , _publisher(container, name, nullptr, _ringBuffer)
@@ -112,7 +111,7 @@ public:
      * @param eventInitializer function to initialize the events allocated in the ring buffer
      * @param eventCloner cloner function used to add new events in the ring buffer when publishing.
      */
-    DataMultiplexerMiddlewareProvider(Container * container, std::string name,
+    DataMultiplexerMiddlewareProvider(Container * container, const std::string & name,
                                 std::function<void(TEvent &)> eventInitializer,
                                 std::function<void(const TEvent &, TEvent &)> eventCloner)
         : _ringBuffer([&eventInitializer](EventData<TEvent> & event) { eventInitializer(event.eventData); })
@@ -127,7 +126,7 @@ public:
      * @param event used as event to clone the events allocated in the ring buffer.
      * @param eventCloner cloner function used to add new events in the ring buffer when publishing.
      */
-    DataMultiplexerMiddlewareProvider(Container * container, std::string name,
+    DataMultiplexerMiddlewareProvider(Container * container, const std::string & name,
                                 const TEvent & event,
                                 std::function<void(const TEvent &, TEvent &)> eventCloner)
         : _modelEvent(new EventData<TEvent>(event))
@@ -162,6 +161,13 @@ public:
         return std::shared_ptr<EventTransformForwarder<SourceEvent, TEvent>>(new EventTransformForwarder<SourceEvent, TEvent>(
                                                                                  transformFunction,
                                                                                  getPublisher()));
+    }
+
+    void setContainer(Container * container) {
+        if (container) {
+            container->attach(&_publisher._publicationStats);
+            _subscriber.setContainer(container);
+        }
     }
 private:
     EventData<TEvent> * _modelEvent;
